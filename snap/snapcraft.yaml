@@ -1,13 +1,8 @@
-name: gog-galaxy-wine
+name: itunes
 version: latest
-version-script: |
-  cat $SNAPCRAFT_STAGE/version
-summary: GOG Galaxy
+summary: iTunes
 description: |
- GOG Galaxy
- .
- run `snap connect gog-galaxy-wine:hardware-observe`, and
-     `snap connect gog-galaxy-wine:process-control`.
+ iTunes
 
 grade: stable
 confinement: strict
@@ -16,33 +11,16 @@ architectures:
   - build-on: i386
 
 apps:
-  gog-galaxy-wine:
-    command: env INSTALL_URL="https://content-system.gog.com/open_link/download?path=/open/galaxy/client/setup_galaxy_$(cat $SNAP/version).exe"
-      $SNAP/bin/sommelier "$WINEPREFIX/drive_c/Program Files/GOG Galaxy/GalaxyClient.exe" /runWithoutUpdating
+  itunes:
+    command: bin/sommelier "$WINEPREFIX/drive_c/Program Files/iTunes/iTunes.exe"
     environment:
-      TRICKS: "corefonts vcrun2015 win7"
+      TRICKS: "corefonts vcrun2013 win7"
       WINEPREFIX: "$SNAP_USER_COMMON/.wine"
-      DLLOVERRIDES: "mshtml=" # Prevent pop-ups about Wine Mono and Wine Gecko
+      DLLOVERRIDES: "mscoree,mshtml=" # Prevent pop-ups about Wine Mono and Wine Gecko
       LC_ALL: "C.UTF-8"
-    plugs:
-      - desktop
-      - desktop-legacy
-      - hardware-observe
-      - home
-      - joystick
-      - network
-      - network-bind
-      - opengl
-      - process-control
-      - pulseaudio
-      - wayland
-      - x11
-  communication:
-    command: bin/sommelier "$WINEPREFIX/drive_c/users/Public/GOG.com/Galaxy/redists/GalaxyCommunication.exe"
-    environment:
-      WINEPREFIX: "$SNAP_USER_COMMON/.wine"
-      DLLOVERRIDES: "mshtml=" # Prevent pop-ups about Wine Mono and Wine Gecko
-      LC_ALL: "C.UTF-8"
+      INSTALL64_URL: "https://www.apple.com/itunes/download/win64"
+      INSTALL32_URL: "https://www.apple.com/itunes/download/win32"
+      INSTALL_EXE: "itunes-installer.exe"
     plugs:
       - desktop
       - desktop-legacy
@@ -269,7 +247,7 @@ parts:
     after:
       - enable-i386
 
-  gog-galaxy:
+  itunes:
     plugin: dump
     build-attributes:
       - no-system-libraries
@@ -292,11 +270,13 @@ parts:
       - wget               # winetricks
       - yad                # winetricks
       - x11-xserver-utils  # for xrandr to set virtual desktop
+    override-pull: |
+      snapcraftctl pull
+
+      wget --quiet "https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks" -O winetricks
+      chmod +x winetricks
     override-build: |
       snapcraftctl build
-
-      wget --quiet "https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks" -O $SNAPCRAFT_PART_INSTALL/winetricks
-      chmod +x $SNAPCRAFT_PART_INSTALL/winetricks
 
       rm -rf $SNAPCRAFT_PART_INSTALL/etc/init
       rm -rf $SNAPCRAFT_PART_INSTALL/etc/init.d
@@ -328,10 +308,3 @@ parts:
       rm -rf $SNAPCRAFT_PART_INSTALL/usr/share/pkgconfig
     after:
       - enable-i386
-
-  gog-galaxy-version:
-    plugin: nil
-    build-packages:
-      - wget
-    override-build: |
-      wget --quiet https://www.gog.com/galaxy -O - | grep 'https://content-system.gog.com/open_link/download?path=/open/galaxy/client/setup_galaxy.*.exe' | head -n1 | sed -E -e 's|^.*"https://content-system\.gog\.com/open_link/download\?path=/open/galaxy/client/setup_galaxy_(.*)\.exe".*$|\1|' > $SNAPCRAFT_PART_INSTALL/version

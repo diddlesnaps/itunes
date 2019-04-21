@@ -1,11 +1,11 @@
 #!/bin/bash
 
-TITLE="GOG Galaxy"
+TITLE="iTunes"
 NOTICE="The ${TITLE} snap is experimental, built
 with development releases of upstream WINE and may not function
 as expected.\n\nIf you encounter issues please report them on the
 ${TITLE} snap issue tracker:
-\n\nhttps://github.com/diddledan/gog-galaxy-wine-snap/issues"
+\n\nhttps://github.com/diddledan/itunes-snap/issues"
 
 function install_app() {
   # Install additional requirements via winetricks here
@@ -26,8 +26,6 @@ function install_app() {
     # Removes the cached installer
     rm -v "${TMPDIR}/${INSTALL_EXE}"
 
-    env WINEARCH="${WINEARCH}" WINEPREFIX="${WINEPREFIX}" "${WINELOADER}" "${SNAP}/GalaxyRedist.exe" /silent
-
     # Launch after install.
     launch_app
   fi
@@ -37,9 +35,7 @@ function launch_app() {
   # If we don't change into the program directory some assets may not be found
   cd "${WINE_DIR}"
 
-  if [ "$(basename "$WINE_EXE")" == "GalaxyClient.exe" ]; then
-    env WINEARCH="${WINEARCH}" WINEPREFIX="${WINEPREFIX}" "${WINELOADER}" "${WINEPREFIX}/drive_c/users/Public/GOG.com/Galaxy/redists/GalaxyCommunication.exe" &
-  fi
+  double_check_exe
 
   # Only use virtual desktop if it has been requested and we're running Xorg
   if [ "${XDG_SESSION_TYPE}" == "x11" ] && [ "${VIRTDESKTOP}" == "1" ]; then
@@ -69,14 +65,19 @@ function append_dir() {
   fi
 }
 
+function double_check_exe() {
+  if [ ! -e "$WINE_EXE" -a "$SNAP_ARCH" = "amd64" -a -e "${WINE_EXE/"Program Files"/"Program Files (x86)"}"  ]; then
+    WINE_EXE="${WINE_EXE/"Program Files"/"Program Files (x86)"}"
+    WINE_DIR="$(dirname "${WINE_EXE}")"
+  fi
+}
+
 # Get the executable we're being asked to launch
 if [ -n "${1}" ]; then
   WINE_EXE="${1}"
-  if [ "$SNAP_ARCH" == "amd64" ]; then
-    WINE_EXE="${WINE_EXE/"Program Files"/"Program Files (x86)"}"
-  fi
-
   WINE_DIR="$(dirname "${WINE_EXE}")"
+
+  double_check_exe
 
   shift
   WINE_EXE_ARGS=$@
@@ -85,8 +86,15 @@ else
   exit 1
 fi
 
+# Select from 32 or 64bit installers if provided separately
+if [ "$SNAP_ARCH" = "amd64" -a -n "$INSTALL64_URL" ]; then
+  INSTALL_URL="$INSTALL64_URL"
+elif [ -n "$INSTALL32_URL" ]; then
+  INSTALL_URL="$INSTALL32_URL"
+fi
+
 # If we've been given and installer URL derive the filename
-if [ -n "${INSTALL_URL}" ]; then
+if [ -z "$INSTALL_EXE" -a -n "${INSTALL_URL}" ]; then
   INSTALL_EXE=$(basename "${INSTALL_URL}")
 fi
 
@@ -245,6 +253,7 @@ fi
 if [[ ${WINE_EXE} = *"winecfg"* ]] || [[ ${WINE_EXE} = *"wineboot"* ]] || [[ ${WINE_EXE} = *"winetricks"* ]]; then
   "${WINE_EXE}" "$@"
 elif [ ! -e "${WINE_EXE}" ]; then
+  echo "${WINE_EXE}"
   install_app
 else
   launch_app
